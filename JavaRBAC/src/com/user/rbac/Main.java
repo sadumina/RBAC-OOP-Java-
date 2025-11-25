@@ -8,67 +8,110 @@ import com.user.rbac.model.ResouceType;
 import com.user.rbac.model.User;
 import com.user.rbac.utils.DemoDataInitializer;
 
+import java.util.Scanner;
+
 /**
- * Entry point of the Java RBAC project.
+ * Interactive CLI version of the Java RBAC Engine.
  *
- * This class:
- * 1) Creates sample users (Admin, Report Viewer, No-Role user)
- * 2) Creates an AccessControlEngine
- * 3) Builds AccessRequest objects for different scenarios
- * 4) Calls engine.evaluate() and prints the results
+ * Flow:
+ * 1) Load sample users
+ * 2) Ask user to choose:
+ *      - Which User?
+ *      - Which Action?
+ *      - Which Resource?
+ * 3) Evaluate using RBAC engine
+ * 4) Print allow/deny decision
  */
 public class Main {
 
     public static void main(String[] args) {
 
-        System.out.println("=== Java RBAC Engine Demo ===");
+        System.out.println("=== Java RBAC Engine (Interactive Mode) ===");
+
+        Scanner scanner = new Scanner(System.in);
 
         // 1) Prepare sample users
         User adminUser        = DemoDataInitializer.createAdminUser();
         User reportViewerUser = DemoDataInitializer.createReportViewerUser();
         User noRoleUser       = DemoDataInitializer.createUserWithNoRoles();
 
-        // 2) Create the RBAC engine (our policy evaluator)
+        User[] users = {adminUser, reportViewerUser, noRoleUser};
+
+        // 2) Instance of RBAC engine
         AccessControlEngine engine = new AccessControlEngine();
 
-        // 3) Build several test access requests
+        while (true) {
 
-        // Scenario A: Admin viewing reports → should be ALLOWED
-        AccessRequest req1 = new AccessRequest(adminUser, Action.view, ResouceType.REPORT);
+            System.out.println("\n--- Select User ---");
+            System.out.println("1. Admin User");
+            System.out.println("2. Report Viewer User");
+            System.out.println("3. User With No Roles");
+            System.out.println("0. Exit");
+            System.out.print("Enter choice: ");
 
-        // Scenario B: Admin deleting users → should be ALLOWED
-        AccessRequest req2 = new AccessRequest(adminUser, Action.delete, ResouceType.USER);
+            int userChoice = scanner.nextInt();
+            if (userChoice == 0) {
+                System.out.println("Exiting...");
+                break;
+            }
 
-        // Scenario C: Report viewer viewing reports → should be ALLOWED
-        AccessRequest req3 = new AccessRequest(reportViewerUser, Action.view, ResouceType.REPORT);
+            if (userChoice < 1 || userChoice > 3) {
+                System.out.println("Invalid option! Try again.");
+                continue;
+            }
 
-        // Scenario D: Report viewer trying to delete users → should be DENIED
-        AccessRequest req4 = new AccessRequest(reportViewerUser, Action.delete, ResouceType.USER);
+            User selectedUser = users[userChoice - 1];
 
-        // Scenario E: User with no roles trying anything → should be DENIED
-        AccessRequest req5 = new AccessRequest(noRoleUser, Action.view, ResouceType.REPORT);
+            // --- SELECT ACTION ---
+            System.out.println("\n--- Select Action ---");
+            for (int i = 0; i < Action.values().length; i++) {
+                System.out.println((i + 1) + ". " + Action.values()[i]);
+            }
+            System.out.print("Enter choice: ");
+            int actionChoice = scanner.nextInt();
 
-        // 4) Evaluate and print all scenarios
-        evaluateAndPrint(engine, req1);
-        evaluateAndPrint(engine, req2);
-        evaluateAndPrint(engine, req3);
-        evaluateAndPrint(engine, req4);
-        evaluateAndPrint(engine, req5);
+            if (actionChoice < 1 || actionChoice > Action.values().length) {
+                System.out.println("Invalid action!");
+                continue;
+            }
 
-        System.out.println("=== Demo Finished ===");
-    }
+            Action selectedAction = Action.values()[actionChoice - 1];
 
-    /**
-     * Helper method that sends a request to the engine
-     * and prints the result in a readable format.
-     */
-    private static void evaluateAndPrint(AccessControlEngine engine, AccessRequest request) {
-        // Ask the engine to evaluate the request
-        AccessDecision decision = engine.evaluate(request);
+            // --- SELECT RESOURCE ---
+            System.out.println("\n--- Select Resource ---");
+            for (int i = 0; i < ResouceType.values().length; i++) {
+                System.out.println((i + 1) + ". " + ResouceType.values()[i]);
+            }
+            System.out.print("Enter choice: ");
+            int resourceChoice = scanner.nextInt();
 
-        // Print request details + decision result
-        System.out.println("\nChecking request: " + request);
-        System.out.println("=> Allowed? " + decision.isAllowed());
-        System.out.println("=> Reason : " + decision.getReason());
+            if (resourceChoice < 1 || resourceChoice > ResouceType.values().length) {
+                System.out.println("Invalid resource!");
+                continue;
+            }
+
+            ResouceType selectedResource = ResouceType.values()[resourceChoice - 1];
+
+            // --- BUILD ACCESS REQUEST ---
+            AccessRequest request = new AccessRequest(
+                    selectedUser,
+                    selectedAction,
+                    selectedResource
+            );
+
+            // --- EVALUATE ---
+            AccessDecision decision = engine.evaluate(request);
+
+            // --- RESULT ---
+            System.out.println("\n=== Access Result ===");
+            System.out.println("User     : " + selectedUser.getName());
+            System.out.println("Action   : " + selectedAction);
+            System.out.println("Resource : " + selectedResource);
+            System.out.println("Allowed? : " + decision.isAllowed());
+            System.out.println("Reason   : " + decision.getReason());
+            System.out.println("======================\n");
+        }
+
+        scanner.close();
     }
 }
